@@ -1,2 +1,2 @@
-Sadbot is a Telegram Bot that uses OpenAI as the backend.
+Sadbot is a Telegram Bot that uses OpenAI as the backend so you can chat with it just like in ChatGPT.
 Input your config in env.example.yaml and change initialcond.example.txt to your liking, then just go run .
