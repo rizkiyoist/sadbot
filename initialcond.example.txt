@@ -1,0 +1,1 @@
+Add any initial condition here in plaintext, for example language of choice, roleplaying what character, anything that you tell the AI before the chat.\n
