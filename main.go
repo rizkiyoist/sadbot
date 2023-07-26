@@ -14,9 +14,9 @@ import (
 )
 
 type Config struct {
-	GPT          string
-	Bot          string
-	HistoryLimit int
+	GPT          string `yaml:"gpt"`
+	Bot          string `yaml:"bot"`
+	HistoryLimit int    `yaml:"history_limit"`
 }
 
 func main() {
@@ -52,11 +52,14 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
+	fmt.Println(config.HistoryLimit)
 	LimitedSlice := NewLimitedSlice(config.HistoryLimit)
 
 	for update := range updates {
 		if update.Message != nil { // If we got a message
-			log.Printf("[%s] %s \n", update.Message.From.UserName, update.Message.Text)
+			// handling in case user don't have a telegram username
+			userName := update.Message.From.UserName + "-" + update.Message.From.FirstName + "-" + update.Message.From.LastName
+			log.Printf("[%s] %s \n", userName, update.Message.Text)
 
 			// var prompt string
 			LimitedSlice.Add(update.Message.Text)
@@ -69,7 +72,7 @@ func main() {
 			}
 
 			// prompting
-			resp := ask(c, prompt, openai.ChatMessageRoleFunction, update.Message.From.UserName)
+			resp := ask(c, prompt, openai.ChatMessageRoleFunction, userName)
 			LimitedSlice.Add(resp)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, resp)
 			msg.ReplyToMessageID = update.Message.MessageID
