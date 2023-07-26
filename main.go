@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	openai "github.com/sashabaranov/go-openai"
@@ -17,7 +16,7 @@ import (
 type Config struct {
 	GPT          string
 	Bot          string
-	HistoryLimit string
+	HistoryLimit int
 }
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 	}
 	initialCond := string(content)
 
-	// Create a new ChatGPT client.
+	// create a new ChatGPT client
 	c := openai.NewClient(config.GPT)
 
 	bot, err := tgbotapi.NewBotAPI(config.Bot)
@@ -48,16 +47,12 @@ func main() {
 	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
-
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
-	historyLimit, err := strconv.Atoi(config.HistoryLimit)
-	if err != nil {
-		log.Fatal(err)
-	}
-	LimitedSlice := NewLimitedSlice(historyLimit)
+
+	LimitedSlice := NewLimitedSlice(config.HistoryLimit)
 
 	for update := range updates {
 		if update.Message != nil { // If we got a message
