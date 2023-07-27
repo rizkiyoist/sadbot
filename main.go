@@ -81,7 +81,9 @@ func main() {
 
 			// limit size of prompt to 2048 otherwise model might return error if it's too long
 			// TODO: summarize the old chat
-			prompt = prompt[:2048]
+			if len(prompt) > 2048 {
+				prompt = prompt[:2048]
+			}
 
 			prompt = initialCond + prompt
 
