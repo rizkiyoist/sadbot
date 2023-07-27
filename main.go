@@ -56,7 +56,6 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
-	fmt.Println(config.HistoryLimit)
 	LimitedSlice := NewLimitedSlice(config.HistoryLimit)
 	lastChatTime = make(map[string]int)
 
@@ -75,11 +74,16 @@ func main() {
 			LimitedSlice.Add(update.Message.Text)
 
 			var prompt string
-			prompt = initialCond + prompt
 
 			for _, ls := range LimitedSlice.Get() {
 				prompt = prompt + ls + "\n"
 			}
+
+			// limit size of prompt to 2048 otherwise model might return error if it's too long
+			// TODO: summarize the old chat
+			prompt = prompt[:2048]
+
+			prompt = initialCond + prompt
 
 			if lastChatTime[nowString] >= config.ChatPerMinute {
 				// sleep for 60 - nowSecond
