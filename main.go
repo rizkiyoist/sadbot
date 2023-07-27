@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	openai "github.com/sashabaranov/go-openai"
@@ -14,10 +15,13 @@ import (
 )
 
 type Config struct {
-	GPT          string `yaml:"gpt"`
-	Bot          string `yaml:"bot"`
-	HistoryLimit int    `yaml:"history_limit"`
+	GPT           string `yaml:"gpt"`
+	Bot           string `yaml:"bot"`
+	HistoryLimit  int    `yaml:"history_limit"`
+	ChatPerMinute int    `yaml:"chat_per_minute"`
 }
+
+var lastChatTime map[string]int // map of string time format 15:04 to count of chats
 
 func main() {
 	yamlFile, err := os.ReadFile("env.yaml")
@@ -54,8 +58,14 @@ func main() {
 
 	fmt.Println(config.HistoryLimit)
 	LimitedSlice := NewLimitedSlice(config.HistoryLimit)
+	lastChatTime = make(map[string]int)
 
 	for update := range updates {
+		now := time.Now()
+		nowString := now.Format("15:04")
+		nowLastSecond := now.Second()
+		lastChatTime[nowString]++
+
 		if update.Message != nil { // If we got a message
 			// handling in case user don't have a telegram username
 			userName := update.Message.From.UserName + "-" + update.Message.From.FirstName + "-" + update.Message.From.LastName
@@ -69,6 +79,13 @@ func main() {
 
 			for _, ls := range LimitedSlice.Get() {
 				prompt = prompt + ls + "\n"
+			}
+
+			if lastChatTime[nowString] >= config.ChatPerMinute {
+				// sleep for 60 - nowSecond
+				time.Sleep(time.Duration(60-nowLastSecond) * time.Second)
+				fmt.Println("sleeping")
+				lastChatTime = make(map[string]int) // reinitialize map to clear old map value
 			}
 
 			// prompting
