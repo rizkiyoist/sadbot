@@ -82,7 +82,7 @@ func main() {
 			// not the best solution since this limits by character instead of token
 			// TODO: summarize the old chat
 			if len(prompt) > limitChar {
-				prompt = prompt[:limitChar]
+				prompt = prompt[limitChar:]
 			}
 
 			// limit size of initial condition otherwise model might return error if it's too long
