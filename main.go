@@ -22,6 +22,8 @@ type Config struct {
 }
 
 var lastChatTime map[string]int // map of string time format 15:04 to count of chats
+var limitChar int = 1500
+var maxTokens int = 1500
 
 func main() {
 	yamlFile, err := os.ReadFile("env.yaml")
@@ -48,8 +50,6 @@ func main() {
 		log.Panic(err)
 	}
 
-	bot.Debug = true
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -65,30 +65,71 @@ func main() {
 		nowLastSecond := now.Second()
 		lastChatTime[nowString]++
 
+		// handling in case user don't have a telegram username
+		userName := update.Message.From.UserName + "-" + update.Message.From.FirstName + "-" + update.Message.From.LastName
+
+		// var prompt string
+		LimitedSlice.Add(update.Message.Text)
+
+		var prompt string
+
+		for _, ls := range LimitedSlice.Get() {
+			prompt = prompt + ls + "\n"
+		}
+
 		if update.Message != nil { // If we got a message
-			// handling in case user don't have a telegram username
-			userName := update.Message.From.UserName + "-" + update.Message.From.FirstName + "-" + update.Message.From.LastName
-			log.Printf("[%s] %s \n", userName, update.Message.Text)
-
-			// var prompt string
-			LimitedSlice.Add(update.Message.Text)
-
-			var prompt string
-
-			for _, ls := range LimitedSlice.Get() {
-				prompt = prompt + ls + "\n"
+			// limit size of prompt otherwise model might return error if it's too long
+			// not the best solution since this limits by character instead of token
+			// TODO: summarize the old chat
+			if len(prompt) > limitChar {
+				prompt = prompt[:limitChar]
 			}
 
-			// limit size of prompt to 2048 otherwise model might return error if it's too long
-			// TODO: summarize the old chat
-			if len(prompt) > 2048 {
-				prompt = prompt[:2048]
+			// limit size of initial condition otherwise model might return error if it's too long
+			if len(initialCond) > limitChar {
+				initialCond = initialCond[:limitChar]
 			}
 
 			prompt = initialCond + prompt
 
+			if update.Message.IsCommand() {
+				if update.Message.Text == "/debug" {
+					fmt.Printf("Debug start ---------- \n %v \n ----------- debug end\n", prompt)
+					continue
+				}
+			}
+
+			if update.Message.IsCommand() {
+				if update.Message.Text == "/clear" {
+					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Memory cleared")
+					msg.ReplyToMessageID = update.Message.MessageID
+					continue
+				}
+			}
+
+			if update.Message.IsCommand() {
+				if update.Message.Text == "/uplimit" {
+					limitChar = limitChar + 500
+					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit increased to "+fmt.Sprint(limitChar))
+					msg.ReplyToMessageID = update.Message.MessageID
+					continue
+				}
+			}
+
+			if update.Message.IsCommand() {
+				if update.Message.Text == "/downlimit" {
+					limitChar = limitChar - 500
+					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit decreased to "+fmt.Sprint(limitChar))
+					msg.ReplyToMessageID = update.Message.MessageID
+					continue
+				}
+			}
+
 			if lastChatTime[nowString] >= config.ChatPerMinute {
-				// sleep for 60 - nowSecond
+				// sleep for the rest of the minute
 				time.Sleep(time.Duration(60-nowLastSecond) * time.Second)
 				fmt.Println("sleeping")
 				lastChatTime = make(map[string]int) // reinitialize map to clear old map value
@@ -109,7 +150,7 @@ func ask(c *openai.Client, prompt string, role string, name string) string {
 	ctx := context.Background()
 	req := openai.ChatCompletionRequest{
 		Model:     openai.GPT3Dot5Turbo,
-		MaxTokens: 2000,
+		MaxTokens: maxTokens,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    role,
@@ -127,6 +168,7 @@ func ask(c *openai.Client, prompt string, role string, name string) string {
 	defer stream.Close()
 
 	var fullText string
+	fmt.Print("\nStreaming")
 	for {
 		response, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -137,7 +179,7 @@ func ask(c *openai.Client, prompt string, role string, name string) string {
 			fmt.Printf("\nStream error: %v\n", err)
 			break
 		}
-		fmt.Print(response.Choices[0].Delta.Content)
+		fmt.Print(".")
 		fullText = fullText + response.Choices[0].Delta.Content
 	}
 	if len(fullText) < 10 {
