@@ -104,6 +104,7 @@ func main() {
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Memory cleared")
 					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
 					continue
 				}
 			}
@@ -114,6 +115,7 @@ func main() {
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit increased to "+fmt.Sprint(limitChar))
 					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
 					continue
 				}
 			}
@@ -124,6 +126,7 @@ func main() {
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit decreased to "+fmt.Sprint(limitChar))
 					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
 					continue
 				}
 			}
