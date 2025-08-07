@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -23,9 +24,16 @@ type Config struct {
 
 var lastChatTime map[string]int // map of string time format 15:04 to count of chats
 var limitChar int = 1500
-var maxTokens int = 1500
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic: %v\n", r)
+			debug.PrintStack()
+			os.Exit(1)
+		}
+	}()
+
 	yamlFile, err := os.ReadFile("env.yaml")
 	if err != nil {
 		panic(err)
@@ -69,7 +77,15 @@ func main() {
 		lastChatTime[nowString]++
 
 		// handling in case user don't have a telegram username
-		userName := update.Message.From.UserName + "-" + update.Message.From.FirstName + "-" + update.Message.From.LastName
+		userName := "unknown"
+		if update.Message.From != nil {
+			userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
+			for _, part := range userNameParts {
+				if part != "" {
+					userName = part
+				}
+			}
+		}
 
 		// var prompt string
 		LimitedSlice.Add(update.Message.Text)
