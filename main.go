@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	openai "github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,7 +43,10 @@ func main() {
 	initialCond := string(content)
 
 	// create a new ChatGPT client
-	c := openai.NewClient(config.GPT)
+	c := openai.NewClient(
+		option.WithAPIKey(config.GPT),
+		option.WithBaseURL("https://openrouter.ai/api/v1"),
+	)
 
 	bot, err := tgbotapi.NewBotAPI(config.Bot)
 	if err != nil {
@@ -139,9 +142,15 @@ func main() {
 			}
 
 			// prompting
-			resp := ask(c, prompt, openai.ChatMessageRoleFunction, userName)
-			LimitedSlice.Add(resp)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, resp)
+			resp, err := ask(&c, prompt, userName)
+			if err != nil {
+				fmt.Printf("failed to prompt: %v\n", err)
+			}
+			if resp != nil {
+				LimitedSlice.Add(*resp)
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, *resp)
 			msg.ReplyToMessageID = update.Message.MessageID
 
 			bot.Send(msg)
@@ -149,46 +158,23 @@ func main() {
 	}
 }
 
-func ask(c *openai.Client, prompt string, role string, name string) string {
-	ctx := context.Background()
-	req := openai.ChatCompletionRequest{
-		Model:     openai.GPT3Dot5Turbo,
-		MaxTokens: maxTokens,
-		Messages: []openai.ChatCompletionMessage{
-			{
-				Role:    role,
-				Content: prompt,
-				Name:    name,
+func ask(c *openai.Client, prompt string, name string) (*string, error) {
+	chatCompletion, err := c.Chat.Completions.New(
+		context.TODO(),
+		openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(name + ": " + prompt),
 			},
+			Model: "openai/gpt-oss-120b",
 		},
-		Stream: true,
-	}
-	stream, err := c.CreateChatCompletionStream(ctx, req)
+	)
 	if err != nil {
-		fmt.Printf("ChatCompletionStream error: %v\n", err)
-		return "error"
+		return nil, fmt.Errorf("failed to create chat completion: %w", err)
 	}
-	defer stream.Close()
 
-	var fullText string
-	fmt.Print("\nStreaming")
-	for {
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			fmt.Println("\nStream finished")
-			break
-		}
-		if err != nil {
-			fmt.Printf("\nStream error: %v\n", err)
-			break
-		}
-		fmt.Print(".")
-		fullText = fullText + response.Choices[0].Delta.Content
-	}
-	if len(fullText) < 10 {
-		return "error"
-	}
-	return fullText
+	rawString := chatCompletion.Choices[0].Message.Content
+
+	return &rawString, nil
 }
 
 type LimitedSlice struct {
