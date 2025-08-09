@@ -78,6 +78,10 @@ func main() {
 
 		// handling in case user don't have a telegram username
 		userName := "unknown"
+		if update.Message == nil {
+			continue
+		}
+
 		if update.Message.From != nil {
 			userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
 			for _, part := range userNameParts {
