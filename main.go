@@ -26,11 +26,15 @@ var lastChatTime map[string]int // map of string time format 15:04 to count of c
 var limitChar int = 1500
 
 func main() {
+	fmt.Println("Starting...")
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("panic: %v\n", r)
 			debug.PrintStack()
-			os.Exit(1)
+			go func() {
+				time.Sleep(5 * time.Second)
+				main()
+			}()
 		}
 	}()
 
