@@ -104,10 +104,6 @@ func main() {
 			prompt = prompt + ls + "\n"
 		}
 
-		if update.Message.NewChatMembers != nil {
-			prompt = prompt + "Reply with new user guideline: " + fmt.Sprint(update.Message.From.UserName) + "\n"
-		}
-
 		if update.Message != nil { // If we got a message
 			// limit size of prompt otherwise model might return error if it's too long
 			// not the best solution since this limits by character instead of token
@@ -122,6 +118,10 @@ func main() {
 			}
 
 			prompt = initialCond + prompt
+
+			if update.Message.NewChatMembers != nil {
+				prompt = prompt + "Reply with new user guideline: " + fmt.Sprint(update.Message.From.UserName) + "\n"
+			}
 
 			if update.Message.IsCommand() {
 				if update.Message.Text == "/debug" {
