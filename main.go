@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -25,7 +26,8 @@ type Config struct {
 }
 
 var lastChatTime map[string]int // map of string time format 15:04 to count of chats
-var limitChar int = 1500
+var limitChar int = 1700
+var promptLimit int = 400 // limit characters just in case
 
 func main() {
 	fmt.Println("Starting...")
@@ -56,6 +58,9 @@ func main() {
 	}
 	initialCond := string(content)
 
+	// contexts is for storing context memories so the AI knows the previous conversation
+	contexts := []string{}
+
 	// create a new ChatGPT client
 	c := openai.NewClient(
 		option.WithAPIKey(config.GPT),
@@ -73,7 +78,6 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
-	LimitedSlice := NewLimitedSlice(config.HistoryLimit)
 	lastChatTime = make(map[string]int)
 
 	for update := range updates {
@@ -88,25 +92,18 @@ func main() {
 			continue
 		}
 
-		if update.Message.From != nil {
-			userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
-			for _, part := range userNameParts {
-				if part != "" {
-					userName = part
-				}
-			}
-		}
-
-		// var prompt string
-		LimitedSlice.Add(update.Message.Text)
-
 		var prompt string
 
-		for _, ls := range LimitedSlice.Get() {
-			prompt = prompt + ls + "\n"
-		}
-
 		if update.Message != nil { // If we got a message
+			if update.Message.From != nil {
+				userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
+				for _, part := range userNameParts {
+					if part != "" {
+						userName = part
+					}
+				}
+			}
+
 			// limit size of prompt otherwise model might return error if it's too long
 			// not the best solution since this limits by character instead of token
 			// TODO: summarize the old chat
@@ -114,13 +111,13 @@ func main() {
 				prompt = prompt[limitChar:]
 			}
 			// limit size of initial condition otherwise model might return error if it's too long
-			if len(initialCond) > limitChar {
-				initialCond = initialCond[:limitChar]
-			}
-			prompt = initialCond + prompt
+			// if len(initialCond) > limitChar {
+			// 	initialCond = initialCond[:limitChar]
+			// }
+			// prompt = initialCond + prompt
 
 			if update.Message.NewChatMembers != nil {
-				prompt = prompt + "Reply with new user guideline: " + fmt.Sprint(update.Message.From.UserName) + "\n"
+				prompt = prompt + "Reply with new user guideline, username: " + fmt.Sprint(update.Message.From.UserName) + "name: " + fmt.Sprint(update.Message.From.FirstName) + "\n"
 			}
 
 			botName := config.Name
@@ -130,6 +127,10 @@ func main() {
 			}
 
 			if update.Message.Text != "" {
+				if len(update.Message.Text) > promptLimit {
+					update.Message.Text = update.Message.Text[:promptLimit]
+				}
+				prompt = update.Message.Text
 				fmt.Println("message content: " + update.Message.Text)
 			}
 
@@ -144,22 +145,8 @@ func main() {
 					fmt.Printf("Debug start ---------- \n %v \n ----------- debug end\n", prompt)
 					continue
 				case "/clear":
-					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
+					contexts = []string{}
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Memory cleared")
-					msg.ReplyToMessageID = update.Message.MessageID
-					bot.Send(msg)
-					continue
-				case "/uplimit":
-					limitChar += 500
-					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit increased to "+fmt.Sprint(limitChar))
-					msg.ReplyToMessageID = update.Message.MessageID
-					bot.Send(msg)
-					continue
-				case "/downlimit":
-					limitChar -= 500
-					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit decreased to "+fmt.Sprint(limitChar))
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 					continue
@@ -173,13 +160,31 @@ func main() {
 				lastChatTime = make(map[string]int) // reinitialize map to clear old map value
 			}
 
+			totalContextLength := 0
+			trimmedContext := []string{}
+			for i := len(contexts) - 1; i >= 0; i-- {
+				context := contexts[i]
+				totalContextLength += len(context)
+				if totalContextLength > limitChar {
+					continue
+				}
+				trimmedContext = append(trimmedContext, context)
+			}
+			contexts = trimmedContext
+
+			jsonContext, _ := json.Marshal(contexts)
+
+			contexts = append(contexts, prompt)
+
 			// prompting
-			resp, err := ask(&c, prompt, userName)
+			finalPrompt := initialCond + "\n" + `context: "` + string(jsonContext) + `"` + prompt
+			resp, err := ask(&c, finalPrompt, userName)
 			if err != nil {
 				fmt.Printf("failed to prompt: %v\n", err)
 			}
 			if resp != nil {
-				LimitedSlice.Add(*resp)
+				// enable this to save replied context
+				// contexts = append(contexts, *resp)
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, *resp)
