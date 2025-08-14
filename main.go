@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -20,6 +21,7 @@ type Config struct {
 	Bot           string `yaml:"bot"`
 	HistoryLimit  int    `yaml:"history_limit"`
 	ChatPerMinute int    `yaml:"chat_per_minute"`
+	Name          string `yaml:"name"`
 }
 
 var lastChatTime map[string]int // map of string time format 15:04 to count of chats
@@ -111,49 +113,46 @@ func main() {
 			if len(prompt) > limitChar {
 				prompt = prompt[limitChar:]
 			}
-
 			// limit size of initial condition otherwise model might return error if it's too long
 			if len(initialCond) > limitChar {
 				initialCond = initialCond[:limitChar]
 			}
-
 			prompt = initialCond + prompt
 
 			if update.Message.NewChatMembers != nil {
 				prompt = prompt + "Reply with new user guideline: " + fmt.Sprint(update.Message.From.UserName) + "\n"
 			}
 
-			if update.Message.IsCommand() {
-				if update.Message.Text == "/debug" {
-					fmt.Printf("Debug start ---------- \n %v \n ----------- debug end\n", prompt)
-					continue
-				}
+			botName := config.Name
+
+			if botName == "" {
+				botName = bot.Self.UserName
+			}
+
+			if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) {
+				prompt = prompt + "You are mentioned: " + fmt.Sprint(update.Message.From.UserName) + "\n"
 			}
 
 			if update.Message.IsCommand() {
-				if update.Message.Text == "/clear" {
+				switch update.Message.Text {
+				case "/debug":
+					fmt.Printf("Debug start ---------- \n %v \n ----------- debug end\n", prompt)
+					continue
+				case "/clear":
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Memory cleared")
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 					continue
-				}
-			}
-
-			if update.Message.IsCommand() {
-				if update.Message.Text == "/uplimit" {
-					limitChar = limitChar + 500
+				case "/uplimit":
+					limitChar += 500
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit increased to "+fmt.Sprint(limitChar))
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 					continue
-				}
-			}
-
-			if update.Message.IsCommand() {
-				if update.Message.Text == "/downlimit" {
-					limitChar = limitChar - 500
+				case "/downlimit":
+					limitChar -= 500
 					LimitedSlice = NewLimitedSlice(config.HistoryLimit)
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Character limit decreased to "+fmt.Sprint(limitChar))
 					msg.ReplyToMessageID = update.Message.MessageID
