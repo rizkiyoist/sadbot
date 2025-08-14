@@ -129,8 +129,13 @@ func main() {
 				botName = bot.Self.UserName
 			}
 
+			if update.Message.Text != "" {
+				fmt.Println("message content: " + update.Message.Text)
+			}
+
 			if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) {
-				prompt = prompt + "You are mentioned: " + fmt.Sprint(update.Message.From.UserName) + "\n"
+				prompt = prompt + "You are mentioned by: " + fmt.Sprint(update.Message.From.UserName) + "\n"
+				fmt.Println("mentioned by: " + fmt.Sprint(update.Message.From.UserName))
 			}
 
 			if update.Message.IsCommand() {
