@@ -172,7 +172,7 @@ func main() {
 			contexts = append(contexts, prompt)
 
 			// prompting
-			finalPrompt := initialCond + "\n" + `context json don't use this unless asked: "` + string(jsonContext) + `"` + prompt
+			finalPrompt := initialCond + "\n" + `context json don't use this unless asked: "` + string(jsonContext) + `"\n Here is the prompt:` + prompt
 			resp, err := ask(&c, finalPrompt, userName)
 			if err != nil {
 				fmt.Printf("failed to prompt: %v\n", err)
