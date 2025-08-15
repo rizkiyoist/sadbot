@@ -110,11 +110,6 @@ func main() {
 			if len(prompt) > limitChar {
 				prompt = prompt[limitChar:]
 			}
-			// limit size of initial condition otherwise model might return error if it's too long
-			// if len(initialCond) > limitChar {
-			// 	initialCond = initialCond[:limitChar]
-			// }
-			// prompt = initialCond + prompt
 
 			if update.Message.NewChatMembers != nil {
 				prompt = prompt + "Reply with new user guideline, username: " + fmt.Sprint(update.Message.From.UserName) + "name: " + fmt.Sprint(update.Message.From.FirstName) + "\n"
@@ -131,7 +126,7 @@ func main() {
 					update.Message.Text = update.Message.Text[:promptLimit]
 				}
 				prompt = update.Message.Text
-				fmt.Println("message content: " + update.Message.Text)
+				fmt.Printf("%s message content: %s\n", update.Message.From.UserName, update.Message.Text)
 			}
 
 			if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) {
@@ -177,7 +172,7 @@ func main() {
 			contexts = append(contexts, prompt)
 
 			// prompting
-			finalPrompt := initialCond + "\n" + `context: "` + string(jsonContext) + `"` + prompt
+			finalPrompt := initialCond + "\n" + `context json don't use this unless asked: "` + string(jsonContext) + `"` + prompt
 			resp, err := ask(&c, finalPrompt, userName)
 			if err != nil {
 				fmt.Printf("failed to prompt: %v\n", err)
