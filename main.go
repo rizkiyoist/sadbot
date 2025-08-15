@@ -197,8 +197,8 @@ func ask(c *openai.Client, prompt string, name string) (*string, error) {
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				openai.UserMessage(name + ": " + prompt),
 			},
-			Model:           "z-ai/glm-4.5-air:free",
-			ReasoningEffort: "high",
+			Model:           "google/gemma-3-27b-it:free",
+			ReasoningEffort: "medium",
 		},
 	)
 	if err != nil {
