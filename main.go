@@ -176,6 +176,8 @@ func main() {
 			resp, err := ask(&c, finalPrompt, userName)
 			if err != nil {
 				fmt.Printf("failed to prompt: %v\n", err)
+				tooManyChat := "sabar, nanti tanya lagi"
+				resp = &tooManyChat
 			}
 			if resp != nil {
 				// enable this to save replied context
