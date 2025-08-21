@@ -144,7 +144,7 @@ func main() {
 				case "/catat":
 					catatan := strings.Join(longCommand[1:], " ")
 
-					_, err = f.WriteString(catatan + "\n")
+					_, err = f.WriteString(catatan + "\n-----\n")
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -154,10 +154,10 @@ func main() {
 						log.Fatal(err)
 					}
 					eventsString := string(eventsByte)
-					eventsList := strings.Split(eventsString, "\n")
+					eventsList := strings.Split(eventsString, "\n-----\n")
 					// limit events number
 					if len(eventsList) > 6 {
-						eventsString = strings.Join(eventsList[len(eventsList)-6:], "\n")
+						eventsString = strings.Join(eventsList[len(eventsList)-6:], "\n-----\n")
 					}
 
 					// replace everything in file
