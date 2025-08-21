@@ -172,7 +172,7 @@ func main() {
 						prompt = "Reply that there are no events"
 					} else {
 						eventsString := string(eventsByte)
-						prompt = "Reply these events: \n" + eventsString
+						prompt = "Reply these events, if it has urls reply the full url: \n" + eventsString
 					}
 				}
 
