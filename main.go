@@ -42,21 +42,7 @@ func main() {
 		}
 	}()
 
-	yamlFile, err := os.ReadFile("env.yaml")
-	if err != nil {
-		panic(err)
-	}
-	var config Config
-	err = yaml.Unmarshal(yamlFile, &config)
-	if err != nil {
-		panic(err)
-	}
-	// get initial condition for the prompt
-	content, err := os.ReadFile("initialcond.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	initialCond := string(content)
+	config, initialCond := initConfig()
 
 	// contexts is for storing context memories so the AI knows the previous conversation
 	contexts := []string{}
@@ -79,6 +65,12 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	lastChatTime = make(map[string]int)
+
+	f, err := os.OpenFile("events.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("failed to open file: %v", err)
+	}
+	defer f.Close()
 
 	for update := range updates {
 		now := time.Now()
@@ -146,6 +138,44 @@ func main() {
 					bot.Send(msg)
 					continue
 				}
+
+				longCommand := strings.Split(update.Message.Text, " ")
+				switch longCommand[0] {
+				case "/catat":
+					catatan := strings.Join(longCommand[1:], " ")
+
+					_, err = f.WriteString(catatan + "\n")
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					eventsByte, err := os.ReadFile("events.txt")
+					if err != nil {
+						log.Fatal(err)
+					}
+					eventsString := string(eventsByte)
+					eventsList := strings.Split(eventsString, "\n")
+					// limit events number
+					if len(eventsList) > 6 {
+						eventsString = strings.Join(eventsList[len(eventsList)-6:], "\n")
+					}
+
+					// replace everything in file
+					err = os.WriteFile("events.txt", []byte(eventsString), 0644)
+					if err != nil {
+						log.Fatal(err)
+					}
+					prompt = "User just saved an event, tell them that they can check the events by typing /events"
+				case "/events":
+					eventsByte, _ := os.ReadFile("events.txt")
+					if string(eventsByte) == "" {
+						prompt = "Reply that there are no events"
+					} else {
+						eventsString := string(eventsByte)
+						prompt = "Reply these events: \n" + eventsString
+					}
+				}
+
 			}
 
 			if lastChatTime[nowString] >= config.ChatPerMinute {
@@ -240,4 +270,33 @@ func (ls *LimitedSlice) Get() []string {
 		}
 	}
 	return result
+}
+
+func initConfig() (Config, string) {
+	yamlFile, err := os.ReadFile("env.yaml")
+	if err != nil {
+		panic(err)
+	}
+	var config Config
+	err = yaml.Unmarshal(yamlFile, &config)
+	if err != nil {
+		panic(err)
+	}
+	// get initial condition for the prompt
+	content, err := os.ReadFile("initialcond.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	initialCond := string(content)
+
+	// get events.txt, create if not exists
+	_, err = os.Stat("events.txt")
+	if os.IsNotExist(err) {
+		f, err := os.Create("events.txt")
+		if err != nil {
+			log.Fatal(err)
+		}
+		f.Close()
+	}
+	return config, initialCond
 }
