@@ -67,13 +67,9 @@ func main() {
 
 	lastChatTime = make(map[string]int)
 
-	f, err := os.OpenFile("events.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("failed to open file: %v", err)
-	}
-	defer f.Close()
-
 	for update := range updates {
+		f := openEventFile()
+
 		now := time.Now()
 		nowString := now.Format("15:04")
 		nowLastSecond := now.Second()
@@ -269,6 +265,15 @@ func main() {
 			bot.Send(msg)
 		}
 	}
+}
+
+func openEventFile() *os.File {
+	f, err := os.OpenFile("events.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("failed to open file: %v", err)
+	}
+	defer f.Close()
+	return f
 }
 
 func ask(c *openai.Client, prompt string, name string) (*string, error) {
