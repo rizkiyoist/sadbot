@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,6 +108,10 @@ func main() {
 				prompt = prompt + "Reply with new user guideline, username: " + fmt.Sprint(update.Message.From.UserName) + "name: " + fmt.Sprint(update.Message.From.FirstName) + "\n"
 			}
 
+			if update.Message.PinnedMessage != nil {
+				continue
+			}
+
 			botName := config.Name
 
 			if botName == "" {
@@ -142,9 +147,9 @@ func main() {
 				longCommand := strings.Split(update.Message.Text, " ")
 				switch longCommand[0] {
 				case "/catat":
-					catatan := strings.Join(longCommand[1:], " ")
+					entry := strings.Join(longCommand[1:], " ")
 
-					_, err = f.WriteString(catatan + "\n-----\n")
+					_, err = f.WriteString(entry + "\n-----\n")
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -165,7 +170,51 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
-					prompt = "User just saved an event, tell them that they can check the events by typing /events"
+					prompt = "User just saved an event, tell them that they can check the events by typing /events or /selesai number to delete an event, example /selesai 1"
+				case "/selesai":
+					validDelete := true
+					if len(longCommand) <= 1 {
+						prompt = "User tried to delete an event but they didn't specify the number, tell them to type /selesai number to delete an event, example /selesai 1"
+						validDelete = false
+					}
+
+					var toDeleteIndex int
+
+					if len(longCommand) > 1 {
+						toDeleteIndex, _ = strconv.Atoi(longCommand[1])
+						toDeleteIndex--
+					}
+
+					eventsByte, err := os.ReadFile("events.txt")
+					if err != nil {
+						log.Fatal(err)
+					}
+					eventsString := string(eventsByte)
+					eventsList := strings.Split(eventsString, "\n-----\n")
+
+					if toDeleteIndex < 0 || toDeleteIndex >= len(eventsList) {
+						prompt = "User tried to delete an event but it is not found, tell them to type /selesai number to delete an event, example /selesai 1"
+						validDelete = false
+					}
+
+					keptEvents := make([]string, 0)
+					for i, event := range eventsList {
+						if i != toDeleteIndex && event != "" {
+							keptEvents = append(keptEvents, event)
+						}
+					}
+
+					eventsList = keptEvents
+					eventsString = strings.Join(eventsList, "\n-----\n")
+
+					if validDelete {
+						// replace everything in file
+						err = os.WriteFile("events.txt", []byte(eventsString), 0644)
+						if err != nil {
+							log.Fatal(err)
+						}
+						prompt = "User just deleted an event say success, then tell them that they can check the events by typing /events or add more by typing /catat then the event details"
+					}
 				case "/events":
 					eventsByte, _ := os.ReadFile("events.txt")
 					if string(eventsByte) == "" {
