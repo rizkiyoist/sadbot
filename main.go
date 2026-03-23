@@ -29,6 +29,7 @@ type Config struct {
 var lastChatTime map[string]int // map of string time format 15:04 to count of chats
 var limitChar int = 1700
 var promptLimit int = 400 // limit characters just in case
+var extraPromptLimitCommand int = 700
 
 func main() {
 	fmt.Println("Starting...")
@@ -68,8 +69,6 @@ func main() {
 	lastChatTime = make(map[string]int)
 
 	for update := range updates {
-		f := openEventFile()
-
 		now := time.Now()
 		nowString := now.Format("15:04")
 		nowLastSecond := now.Second()
@@ -115,6 +114,9 @@ func main() {
 			}
 
 			if update.Message.Text != "" {
+				if update.Message.IsCommand() {
+					promptLimit = extraPromptLimitCommand
+				}
 				if len(update.Message.Text) > promptLimit {
 					update.Message.Text = update.Message.Text[:promptLimit]
 				}
@@ -145,7 +147,7 @@ func main() {
 				case "/catat":
 					entry := strings.Join(longCommand[1:], " ")
 
-					_, err = f.WriteString(entry + "\n-----\n")
+					err = writeEventFile(entry + "\n-----\n")
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -267,13 +269,19 @@ func main() {
 	}
 }
 
-func openEventFile() *os.File {
+func writeEventFile(content string) error {
 	f, err := os.OpenFile("events.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("failed to open file: %v", err)
+		return err
 	}
 	defer f.Close()
-	return f
+	_, err = f.WriteString(content)
+	if err != nil {
+		fmt.Printf("failed to write to file: %v", err)
+		return err
+	}
+	return nil
 }
 
 func ask(c *openai.Client, prompt string, name string) (*string, error) {
