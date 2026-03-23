@@ -283,7 +283,7 @@ func ask(c *openai.Client, prompt string, name string) (*string, error) {
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				openai.UserMessage(name + ": " + prompt),
 			},
-			Model:           "tngtech/deepseek-r1t2-chimera:free",
+			Model:           "stepfun/step-3.5-flash:free",
 			ReasoningEffort: "medium",
 		},
 	)
