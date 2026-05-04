@@ -140,6 +140,12 @@ func main() {
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
 					continue
+				case "/help", "/?":
+					contexts = []string{}
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Command tersedia: \n/catat untuk mencatat event, contoh: /catat meeting dengan tim jam 3 sore\n/events untuk melihat event yang sudah dicatat\n/selesai nomor untuk menghapus event, contoh: /selesai 1\n")
+					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
+					continue
 				}
 
 				longCommand := strings.Split(update.Message.Text, " ")
@@ -213,7 +219,7 @@ func main() {
 						}
 						prompt = "User just deleted an event say success, then tell them that they can check the events by typing /events or add more by typing /catat then the event details"
 					}
-				case "/events":
+				case "/events", "/event", "/contests", "/contest":
 					eventsByte, _ := os.ReadFile("events.txt")
 					if string(eventsByte) == "" {
 						prompt = "Reply that there are no events"
