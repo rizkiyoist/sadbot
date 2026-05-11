@@ -89,11 +89,6 @@ func main() {
 				botName = bot.Self.UserName
 			}
 
-			if update.Message.ReplyToMessage == nil || !strings.Contains(update.Message.ReplyToMessage.Text, botName) {
-				// if the message is not a reply to the bot, and the message doesn't mention the bot, skip it
-				continue
-			}
-
 			if update.Message.From != nil {
 				userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
 				for _, part := range userNameParts {
@@ -110,31 +105,27 @@ func main() {
 				prompt = prompt[limitChar:]
 			}
 
-			if update.Message.NewChatMembers != nil {
-				prompt = prompt + "Reply with new user guideline, username: " + fmt.Sprint(update.Message.From.UserName) + "name: " + fmt.Sprint(update.Message.From.FirstName) + "\n"
-			}
-
-			if update.Message.PinnedMessage != nil {
-				continue
-			}
-
-			if update.Message.Text != "" {
-				if update.Message.IsCommand() {
-					promptLimit = extraPromptLimitCommand
+			if !update.Message.IsCommand() {
+				if update.Message.NewChatMembers != nil {
+					prompt = prompt + "Reply with new user guideline, username: " + fmt.Sprint(update.Message.From.UserName) + "name: " + fmt.Sprint(update.Message.From.FirstName) + "\n"
 				}
-				if len(update.Message.Text) > promptLimit {
-					update.Message.Text = update.Message.Text[:promptLimit]
-				}
-				prompt = update.Message.Text
-				fmt.Printf("%s message content: %s\n", update.Message.From.UserName, update.Message.Text)
-			}
 
-			if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) {
-				prompt = prompt + "You are mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text) + "\n"
-				fmt.Println("mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text))
+				if update.Message.PinnedMessage != nil {
+					continue
+				}
+
+				if update.Message.Text != "" {
+					if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) || update.Message.ReplyToMessage != nil {
+						prompt = prompt + "You are mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text) + "\n"
+						fmt.Println("mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text))
+					} else {
+						continue
+					}
+				}
 			}
 
 			if update.Message.IsCommand() {
+				promptLimit = extraPromptLimitCommand
 				switch update.Message.Text {
 				case "/debug":
 					fmt.Printf("Debug start ---------- \n %v \n ----------- debug end\n", prompt)
