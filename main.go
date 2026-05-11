@@ -83,6 +83,17 @@ func main() {
 		var prompt string
 
 		if update.Message != nil { // If we got a message
+			botName := config.Name
+
+			if botName == "" {
+				botName = bot.Self.UserName
+			}
+
+			if update.Message.ReplyToMessage == nil || !strings.Contains(update.Message.ReplyToMessage.Text, botName) {
+				// if the message is not a reply to the bot, and the message doesn't mention the bot, skip it
+				continue
+			}
+
 			if update.Message.From != nil {
 				userNameParts := []string{update.Message.From.UserName, update.Message.From.FirstName, update.Message.From.LastName}
 				for _, part := range userNameParts {
@@ -105,12 +116,6 @@ func main() {
 
 			if update.Message.PinnedMessage != nil {
 				continue
-			}
-
-			botName := config.Name
-
-			if botName == "" {
-				botName = bot.Self.UserName
 			}
 
 			if update.Message.Text != "" {
