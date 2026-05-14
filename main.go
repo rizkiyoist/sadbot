@@ -114,6 +114,14 @@ func main() {
 					continue
 				}
 
+				if update.Message.Sticker != nil {
+					continue
+				}
+
+				if update.Message.Photo != nil && (update.Message.Caption == "") {
+					continue
+				}
+
 				if update.Message.Text != "" {
 					if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) || (update.Message.ReplyToMessage != nil && update.Message.ReplyToMessage.From.IsBot) {
 						prompt = prompt + "You are mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text) + "\n"
