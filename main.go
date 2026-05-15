@@ -122,6 +122,12 @@ func main() {
 					continue
 				}
 
+				// if the message is a media with caption, use the caption as the text
+				// normally this should only be responded if the bot is mentioned still
+				if update.Message.Caption != "" && update.Message.Text == "" {
+					update.Message.Text = update.Message.Caption
+				}
+
 				if update.Message.Text != "" {
 					if strings.Contains(update.Message.Text, botName) || strings.Contains(update.Message.Text, strings.ToLower(botName)) || (update.Message.ReplyToMessage != nil && update.Message.ReplyToMessage.From.IsBot) {
 						prompt = prompt + "You are mentioned by: " + fmt.Sprint(update.Message.From.UserName) + " saying " + fmt.Sprint(update.Message.Text) + "\n"
